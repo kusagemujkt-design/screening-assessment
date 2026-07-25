@@ -1,0 +1,446 @@
+/* ============================================================================
+   RECRUITMENT INTERVIEW ASSESSMENT - STYLESHEET
+   Palet warna:
+     - Navy gelap   : #16213E  (header/aksen utama)
+     - Biru aktif   : #3B5BDB  (soal aktif)
+     - Hijau sukses : #2E9E5B  (soal terjawab / timer aman)
+     - Kuning warn  : #F2B705  (timer waspada)
+     - Merah bahaya : #E63946  (timer kritis)
+     - Latar        : #F5F6FA
+============================================================================= */
+
+:root {
+  --navy: #16213E;
+  --navy-light: #24345C;
+  --blue-active: #3B5BDB;
+  --green: #2E9E5B;
+  --green-bg: #E5F5EC;
+  --yellow: #F2B705;
+  --yellow-bg: #FFF8E1;
+  --red: #E63946;
+  --red-bg: #FDEAEC;
+  --bg: #F5F6FA;
+  --card-bg: #FFFFFF;
+  --text-main: #1D2233;
+  --text-muted: #6B7280;
+  --border: #E3E6EE;
+  --radius: 10px;
+  --shadow: 0 4px 16px rgba(22, 33, 62, 0.08);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--text-main);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+}
+.hidden { display: none !important; }
+
+/* ============================================================
+   PAGE SWITCHER
+   Hanya satu .page yang punya class "active-page" pada satu waktu.
+============================================================ */
+.page {
+  display: none;
+  min-height: 100vh;
+}
+.page.active-page {
+  display: block;
+}
+
+/* ============================================================
+   LOADING OVERLAY
+============================================================ */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(22, 33, 62, 0.55);
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: #fff;
+  font-size: 14px;
+}
+.spinner {
+  width: 42px;
+  height: 42px;
+  border: 4px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   LOGIN PAGE
+============================================================ */
+#login-page {
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+#login-page.active-page {
+  display: flex;
+}
+.login-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 40px 32px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+}
+.login-logo { margin-bottom: 18px; }
+.logo-mark {
+  width: 56px; height: 56px;
+  border-radius: 14px;
+  background: var(--navy);
+  color: #fff;
+  font-weight: 700;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  letter-spacing: 0.5px;
+}
+.login-title {
+  font-size: 22px;
+  margin: 8px 0 6px;
+  color: var(--navy);
+}
+.login-subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 26px;
+  line-height: 1.5;
+}
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+#token-input {
+  padding: 13px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-size: 15px;
+  text-align: center;
+  letter-spacing: 1px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+#token-input:focus {
+  border-color: var(--blue-active);
+}
+.btn, #btn-start {
+  border: none;
+  border-radius: 8px;
+  padding: 13px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.08s ease, opacity 0.15s ease;
+}
+#btn-start {
+  background: var(--navy);
+  color: #fff;
+}
+#btn-start:hover { opacity: 0.92; }
+#btn-start:active { transform: scale(0.98); }
+
+.login-error {
+  margin-top: 16px;
+  color: var(--red);
+  background: var(--red-bg);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13.5px;
+}
+
+/* ============================================================
+   ASSESSMENT PAGE LAYOUT
+============================================================ */
+.assessment-layout {
+  display: flex;
+  min-height: 100vh;
+}
+.sidebar {
+  width: 230px;
+  flex-shrink: 0;
+  background: var(--navy);
+  color: #fff;
+  padding: 22px 16px;
+  display: flex;
+  flex-direction: column;
+}
+.sidebar-header { margin-bottom: 16px; }
+.sidebar-title {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: rgba(255,255,255,0.7);
+}
+.question-nav {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  overflow-y: auto;
+}
+.q-nav-item {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.q-nav-item.answered { background: var(--green); }
+.q-nav-item.active { background: var(--blue-active); }
+.q-nav-item:disabled { cursor: not-allowed; opacity: 0.5; }
+
+.sidebar-legend {
+  margin-top: auto;
+  padding-top: 18px;
+  font-size: 12px;
+  color: rgba(255,255,255,0.75);
+}
+.legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.dot-answered { background: var(--green); }
+.dot-active { background: var(--blue-active); }
+.dot-idle { background: rgba(255,255,255,0.25); }
+
+.assessment-main {
+  flex: 1;
+  padding: 28px 36px;
+  max-width: 760px;
+  margin: 0 auto;
+  width: 100%;
+}
+.assessment-header { margin-bottom: 18px; }
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13.5px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.candidate-name { font-weight: 600; color: var(--navy); }
+.progress-bar-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--blue-active);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.timer-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 18px 0 22px;
+}
+.timer-badge {
+  padding: 10px 26px;
+  border-radius: 999px;
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+  transition: background 0.3s, color 0.3s;
+}
+.timer-green { background: var(--green-bg); color: var(--green); }
+.timer-yellow { background: var(--yellow-bg); color: #8a6d00; }
+.timer-red { background: var(--red-bg); color: var(--red); animation: pulse 1s infinite; }
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.question-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 28px 26px;
+  margin-bottom: 22px;
+}
+.question-text {
+  font-size: 18px;
+  line-height: 1.5;
+  margin: 0 0 22px;
+  color: var(--text-main);
+}
+
+.question-image-wrap {
+  margin: 0 0 22px;
+  text-align: center;
+}
+.question-image {
+  max-width: 100%;
+  max-height: 420px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.options-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.option-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 13px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.option-item:hover { border-color: var(--blue-active); }
+.option-item.selected {
+  border-color: var(--blue-active);
+  background: #EEF1FD;
+}
+.option-item input[type="radio"] {
+  width: 18px; height: 18px;
+  accent-color: var(--blue-active);
+  flex-shrink: 0;
+}
+.option-label-letter {
+  font-weight: 700;
+  color: var(--navy);
+  width: 20px;
+}
+
+.essay-container textarea {
+  width: 100%;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 14.5px;
+  font-family: inherit;
+  resize: vertical;
+  outline: none;
+}
+.essay-container textarea:focus { border-color: var(--blue-active); }
+
+.nav-buttons {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+.btn-secondary {
+  background: #fff;
+  border: 1.5px solid var(--border) !important;
+  color: var(--text-main);
+}
+.btn-secondary:hover { border-color: var(--navy) !important; }
+.btn-primary {
+  background: var(--navy);
+  color: #fff;
+  margin-left: auto;
+}
+.btn-primary:hover { opacity: 0.92; }
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ============================================================
+   FINISH PAGE
+============================================================ */
+#finish-page {
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+#finish-page.active-page { display: flex; }
+.finish-card {
+  background: var(--card-bg);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 48px 36px;
+  max-width: 460px;
+  text-align: center;
+}
+.finish-icon {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  background: var(--green-bg);
+  color: var(--green);
+  font-size: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 18px;
+}
+.finish-card h1 { color: var(--navy); margin-bottom: 12px; font-size: 22px; }
+.finish-card p { color: var(--text-muted); font-size: 14.5px; line-height: 1.6; margin: 6px 0; }
+
+/* ============================================================
+   RESPONSIVE - MOBILE
+============================================================ */
+@media (max-width: 820px) {
+  .assessment-layout { flex-direction: column; }
+  .sidebar {
+    width: 100%;
+    padding: 14px 16px;
+  }
+  .question-nav {
+    grid-template-columns: repeat(8, 1fr);
+    max-height: 140px;
+  }
+  .sidebar-legend {
+    display: flex;
+    gap: 16px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255,255,255,0.15);
+  }
+  .assessment-main {
+    padding: 20px 16px 32px;
+  }
+  .question-card { padding: 20px 18px; }
+  .timer-badge { font-size: 18px; padding: 8px 20px; }
+}
+
+@media (max-width: 480px) {
+  .login-card { padding: 30px 22px; }
+  .question-nav { grid-template-columns: repeat(6, 1fr); }
+  .nav-buttons { flex-wrap: wrap; }
+  .btn-primary, .btn-secondary { flex: 1; min-width: 130px; }
+}
