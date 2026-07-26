@@ -70,6 +70,14 @@ let state = {
 
 let timerInterval = null;
 
+// Guard bersama supaya navigasi (sidebar / tombol Berikutnya / tombol
+// Sebelumnya) tidak bisa saling tumpang-tindih kalau kandidat klik cepat
+// berturut-turut dari SUMBER MANAPUN sebelum proses sebelumnya selesai --
+// tanpa ini, 2 pemanggilan async yang overlap bisa membuat state.currentIndex
+// berakhir tidak sesuai urutan klik (yang menang adalah yang lebih dulu
+// selesai await-nya, bukan yang terakhir diklik).
+let navigationInProgress = false;
+
 // ============================================================================
 // HELPER: PANGGIL API GOOGLE APPS SCRIPT
 // ----------------------------------------------------------------------------
@@ -288,10 +296,12 @@ function renderSidebar() {
     btn.textContent = idx + 1;
 
     const isAnswered = !!(state.answers[q.id] && hasValue(state.answers[q.id].answer));
+    const isTimedOut = !!(state.answers[q.id] && state.answers[q.id].timedOut);
     const isActive = idx === state.currentIndex;
     const isVisited = state.answers.hasOwnProperty(q.id) || isActive;
 
     if (isActive) btn.classList.add('active');
+    else if (isTimedOut) btn.classList.add('timedout');
     else if (isAnswered) btn.classList.add('answered');
 
     // Hanya boleh loncat ke soal yang sudah pernah dikunjungi/dijawab,
@@ -306,6 +316,29 @@ function renderSidebar() {
   });
 
   updateProgress();
+}
+
+// Navigasi lewat klik sidebar -- HANYA ke soal yang sudah pernah dikunjungi
+// (dijamin oleh pengecekan isVisited di renderSidebar sebelum listener ini
+// dipasang). Menyimpan jawaban soal yang sedang aktif dulu sebelum pindah,
+// sama seperti perilaku tombol Sebelumnya/Berikutnya.
+async function goToQuestion(targetIndex) {
+  if (targetIndex === state.currentIndex) return;
+  if (navigationInProgress) return; // abaikan klik kalau masih ada navigasi lain berjalan
+  navigationInProgress = true;
+
+  try {
+    const currentQuestion = state.questions[state.currentIndex];
+    if (currentQuestion && !(state.answers[currentQuestion.id] && state.answers[currentQuestion.id].timedOut)) {
+      await syncAnswerToServer(currentQuestion.id);
+    }
+
+    state.currentIndex = targetIndex;
+    persistState();
+    renderQuestion(state.currentIndex);
+  } finally {
+    navigationInProgress = false;
+  }
 }
 
 function hasValue(val) {
@@ -337,13 +370,17 @@ function renderQuestion(index) {
   const essayInput = document.getElementById('essay-answer');
 
   const savedAnswer = state.answers[q.id] ? state.answers[q.id].answer : '';
+  // Soal yang waktunya sudah habis dikunci: bisa dilihat lagi lewat
+  // "Sebelumnya", tapi tidak bisa diedit dan timer-nya tidak dijalankan ulang.
+  const isLocked = !!(state.answers[q.id] && state.answers[q.id].timedOut);
 
   if (String(q.jenis).toLowerCase().indexOf('esai') !== -1) {
     // ---- Jenis: ESAI ----
     optionsContainer.classList.add('hidden');
     essayContainer.classList.remove('hidden');
     essayInput.value = savedAnswer || '';
-    essayInput.oninput = () => cacheAnswer(q.id, essayInput.value);
+    essayInput.disabled = isLocked;
+    essayInput.oninput = isLocked ? null : () => cacheAnswer(q.id, essayInput.value);
   } else {
     // ---- Jenis: PILIHAN GANDA ----
     essayContainer.classList.add('hidden');
@@ -363,18 +400,22 @@ function renderQuestion(index) {
       const label = document.createElement('label');
       label.className = 'option-item';
       if (savedAnswer === opt.letter) label.classList.add('selected');
+      if (isLocked) label.classList.add('locked');
 
       const radio = document.createElement('input');
       radio.type = 'radio';
       radio.name = 'option-' + q.id;
       radio.value = opt.letter;
       radio.checked = savedAnswer === opt.letter;
-      radio.addEventListener('change', () => {
-        cacheAnswer(q.id, opt.letter);
-        // refresh tampilan highlight opsi terpilih
-        optionsContainer.querySelectorAll('.option-item').forEach(el => el.classList.remove('selected'));
-        label.classList.add('selected');
-      });
+      radio.disabled = isLocked;
+      if (!isLocked) {
+        radio.addEventListener('change', () => {
+          cacheAnswer(q.id, opt.letter);
+          // refresh tampilan highlight opsi terpilih
+          optionsContainer.querySelectorAll('.option-item').forEach(el => el.classList.remove('selected'));
+          label.classList.add('selected');
+        });
+      }
 
       const letterSpan = document.createElement('span');
       letterSpan.className = 'option-label-letter';
@@ -397,7 +438,18 @@ function renderQuestion(index) {
     (index === state.questions.length - 1) ? 'Selesai & Submit' : 'Berikutnya →';
 
   renderSidebar();
-  startTimer(q);
+
+  if (isLocked) {
+    // Jangan jalankan timer lagi untuk soal yang sudah timeout -- cukup
+    // tampilkan badge statis "Waktu Habis" (merah), tidak menghitung mundur.
+    const badge = document.getElementById('timer-badge');
+    const text = document.getElementById('timer-text');
+    badge.classList.remove('timer-green', 'timer-yellow');
+    badge.classList.add('timer-red');
+    text.textContent = 'Waktu Habis';
+  } else {
+    startTimer(q);
+  }
 }
 
 // Menyimpan jawaban ke localStorage saja (TANPA request ke server).
@@ -473,7 +525,14 @@ function stopTimer() {
 
 // Waktu soal habis: simpan jawaban ke server, catat log TIMEOUT,
 // lalu otomatis lanjut ke soal berikutnya (atau submit jika soal terakhir).
+// Soal ini juga ditandai timedOut -- kalau kandidat sempat kembali ke soal
+// ini lewat "Sebelumnya", akan ditampilkan read-only (lihat renderQuestion).
 async function handleTimeout(question) {
+  if (!state.answers[question.id]) {
+    state.answers[question.id] = { answer: '', remaining: 0, spent: 0, synced: false };
+  }
+  state.answers[question.id].timedOut = true;
+
   await syncAnswerToServer(question.id);
   logEvent('TIMEOUT');
 
@@ -529,39 +588,51 @@ async function syncAnswerToServer(questionId) {
 // TOMBOL NAVIGASI: SEBELUMNYA / BERIKUTNYA
 // ============================================================================
 document.getElementById('btn-next').addEventListener('click', async function () {
+  if (navigationInProgress) return;
+  navigationInProgress = true;
+
   const btn = this;
   btn.disabled = true;
 
-  const currentQuestion = state.questions[state.currentIndex];
-  await syncAnswerToServer(currentQuestion.id);
-  // SENGAJA TIDAK logEvent('NEXT QUESTION') -- lihat catatan dimensioning
-  // di syncAnswerToServer(). Progress soal cukup terekam lewat
-  // `current_question` di tabel screenings (D1), diupdate bareng autosave.
+  try {
+    const currentQuestion = state.questions[state.currentIndex];
+    await syncAnswerToServer(currentQuestion.id);
+    // SENGAJA TIDAK logEvent('NEXT QUESTION') -- lihat catatan dimensioning
+    // di syncAnswerToServer(). Progress soal cukup terekam lewat
+    // `current_question` di tabel screenings (D1), diupdate bareng autosave.
 
-  if (state.currentIndex === state.questions.length - 1) {
-    await finishAssessment();
-  } else {
-    state.currentIndex += 1;
-    persistState();
-    renderQuestion(state.currentIndex);
+    if (state.currentIndex === state.questions.length - 1) {
+      await finishAssessment();
+    } else {
+      state.currentIndex += 1;
+      persistState();
+      renderQuestion(state.currentIndex);
+    }
+  } finally {
+    btn.disabled = false;
+    navigationInProgress = false;
   }
-
-  btn.disabled = false;
 });
 
 document.getElementById('btn-prev').addEventListener('click', async function () {
   if (state.currentIndex === 0) return;
+  if (navigationInProgress) return;
+  navigationInProgress = true;
+
   const btn = this;
   btn.disabled = true;
 
-  const currentQuestion = state.questions[state.currentIndex];
-  await syncAnswerToServer(currentQuestion.id);
+  try {
+    const currentQuestion = state.questions[state.currentIndex];
+    await syncAnswerToServer(currentQuestion.id);
 
-  state.currentIndex -= 1;
-  persistState();
-  renderQuestion(state.currentIndex);
-
-  btn.disabled = false;
+    state.currentIndex -= 1;
+    persistState();
+    renderQuestion(state.currentIndex);
+  } finally {
+    btn.disabled = false;
+    navigationInProgress = false;
+  }
 });
 
 // ============================================================================
